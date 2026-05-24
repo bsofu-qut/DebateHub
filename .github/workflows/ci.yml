@@ -11,7 +11,7 @@ jobs:
     runs-on: self-hosted
     environment: production
     env:
-      BACKEND_APP_NAME: debatehub-backend
+      BACKEND_APP_NAME: backend
       BACKEND_ENV_FILE: /etc/debatehub/backend.env
       FRONTEND_DEPLOY_PATH: /var/www/debatehub
 
@@ -81,6 +81,9 @@ jobs:
           fi
 
           cd backend
-          pm2 delete "$BACKEND_APP_NAME" || true
-          pm2 start server.js --name "$BACKEND_APP_NAME" --update-env
+          if pm2 describe "$BACKEND_APP_NAME" >/dev/null 2>&1; then
+            pm2 restart "$BACKEND_APP_NAME" --update-env
+          else
+            pm2 start server.js --name "$BACKEND_APP_NAME" --update-env
+          fi
           pm2 save
