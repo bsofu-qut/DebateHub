@@ -13,6 +13,7 @@ jobs:
     env:
       BACKEND_APP_NAME: backend
       BACKEND_ENV_FILE: /etc/debatehub/backend.env
+      REACT_APP_API_URL: ${{ vars.REACT_APP_API_URL || 'http://3.26.32.178:5001' }}
       FRONTEND_DEPLOY_PATH: /var/www/debatehub
 
     steps:
