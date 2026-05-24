@@ -12,6 +12,7 @@ jobs:
     environment: production
     env:
       BACKEND_APP_NAME: debatehub-backend
+      BACKEND_ENV_FILE: /etc/debatehub/backend.env
       FRONTEND_DEPLOY_PATH: /var/www/debatehub
 
     steps:
@@ -32,34 +33,40 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Validate deployment configuration
-        env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      - name: Validate deployment path
         run: |
-          if [ -z "$MONGO_URI" ]; then
-            echo "::error::Missing required GitHub secret: MONGO_URI"
-            exit 1
-          fi
-
-          if [ -z "$JWT_SECRET" ]; then
-            echo "::error::Missing required GitHub secret: JWT_SECRET"
-            exit 1
-          fi
-
           if [ -z "$FRONTEND_DEPLOY_PATH" ] || [ "$FRONTEND_DEPLOY_PATH" = "/" ]; then
             echo "::error::FRONTEND_DEPLOY_PATH must be a non-root deployment directory"
             exit 1
           fi
 
-      - name: Write backend environment file
+      - name: Prepare backend environment file
+        env:
+          SECRET_MONGO_URI: ${{ secrets.MONGO_URI }}
+          SECRET_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          MONGO_DB_NAME: ${{ vars.MONGO_DB_NAME || 'debateHub' }}
+          PORT: ${{ vars.PORT || '5001' }}
         run: |
-          cat > backend/.env <<EOF
-          MONGO_URI=${{ secrets.MONGO_URI }}
-          MONGO_DB_NAME=${{ vars.MONGO_DB_NAME || 'debateHub' }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          PORT=${{ vars.PORT || '5001' }}
-          EOF
+          if [ -n "$SECRET_MONGO_URI" ] && [ -n "$SECRET_JWT_SECRET" ]; then
+            {
+              printf 'MONGO_URI=%s\n' "$SECRET_MONGO_URI"
+              printf 'MONGO_DB_NAME=%s\n' "$MONGO_DB_NAME"
+              printf 'JWT_SECRET=%s\n' "$SECRET_JWT_SECRET"
+              printf 'PORT=%s\n' "$PORT"
+            } > backend/.env
+          elif [ -f "$BACKEND_ENV_FILE" ]; then
+            cp "$BACKEND_ENV_FILE" backend/.env
+          elif [ -n "${MONGO_URI:-}" ] && [ -n "${JWT_SECRET:-}" ]; then
+            {
+              printf 'MONGO_URI=%s\n' "$MONGO_URI"
+              printf 'MONGO_DB_NAME=%s\n' "${MONGO_DB_NAME:-debateHub}"
+              printf 'JWT_SECRET=%s\n' "$JWT_SECRET"
+              printf 'PORT=%s\n' "${PORT:-5001}"
+            } > backend/.env
+          else
+            echo "::error::Backend environment is missing. Add MONGO_URI and JWT_SECRET as GitHub Environment secrets, set runner environment variables, or create $BACKEND_ENV_FILE on the EC2 server."
+            exit 1
+          fi
 
       - name: Deploy frontend
         run: |
