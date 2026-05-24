@@ -1,17 +1,17 @@
-name: CI
+name: CI/CD
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-test-deploy:
+    runs-on: self-hosted
+    env:
+      BACKEND_APP_NAME: debatehub-backend
+      FRONTEND_DEPLOY_PATH: /var/www/debatehub
 
     steps:
       - name: Checkout code
@@ -30,3 +30,49 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Validate deployment configuration
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          if [ -z "$MONGO_URI" ]; then
+            echo "::error::Missing required GitHub secret: MONGO_URI"
+            exit 1
+          fi
+
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::Missing required GitHub secret: JWT_SECRET"
+            exit 1
+          fi
+
+          if [ -z "$FRONTEND_DEPLOY_PATH" ] || [ "$FRONTEND_DEPLOY_PATH" = "/" ]; then
+            echo "::error::FRONTEND_DEPLOY_PATH must be a non-root deployment directory"
+            exit 1
+          fi
+
+      - name: Write backend environment file
+        run: |
+          cat > backend/.env <<EOF
+          MONGO_URI=${{ secrets.MONGO_URI }}
+          MONGO_DB_NAME=${{ vars.MONGO_DB_NAME || 'debateHub' }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          PORT=${{ vars.PORT || '5001' }}
+          EOF
+
+      - name: Deploy frontend
+        run: |
+          sudo mkdir -p "$FRONTEND_DEPLOY_PATH"
+          sudo rm -rf "$FRONTEND_DEPLOY_PATH"/*
+          sudo cp -R frontend/build/. "$FRONTEND_DEPLOY_PATH"/
+
+      - name: Restart backend
+        run: |
+          if ! command -v pm2 >/dev/null 2>&1; then
+            npm install -g pm2
+          fi
+
+          cd backend
+          pm2 delete "$BACKEND_APP_NAME" || true
+          pm2 start server.js --name "$BACKEND_APP_NAME" --update-env
+          pm2 save
