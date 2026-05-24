@@ -158,12 +158,18 @@ Admin users can:
 
 Admin accounts cannot be self-registered through the registration page.
 
-Development admin credentials:
+## How To Use Built-In Users
 
-```text
-Email: burak.sofu@gmail.com
-Password: burak.sofu@gmail.com
-```
+DebateHub includes two built-in accounts for testing, demonstration, and deployment smoke checks. These accounts are created automatically the first time they successfully log in.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Regular user | `regular.user@connect.qut.edu.au` | `regular.user@connect.qut.edu.au` |
+| Admin user | `admin.user@connect.qut.edu.au` | `admin.user@connect.qut.edu.au` |
+
+Use the regular user account to explore debates, follow debates, post arguments and replies, and vote on posts. Use the admin account to access the admin dashboard and manage debate topics.
+
+These built-in accounts cannot be registered through the registration page.
 
 ## Core Workflows
 
