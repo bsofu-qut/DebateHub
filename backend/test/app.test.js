@@ -40,23 +40,23 @@ describe('DebateHub API automation tests', () => {
         expect(app).to.have.property('listen').that.is.a('function');
     });
 
-    it('prevents the reserved admin email from registering as a normal user', async () => {
+    it('prevents built-in accounts from registering as normal users', async () => {
         const findUser = sinon.stub(User, 'findOne');
 
         const res = await chai.request(app)
             .post('/api/auth/register')
             .send({
-                name: 'Burak Sofu',
-                email: 'burak.sofu@gmail.com',
-                password: 'burak.sofu@gmail.com',
+                name: 'Admin User',
+                email: 'admin.user@connect.qut.edu.au',
+                password: 'admin.user@connect.qut.edu.au',
             });
 
         expect(res).to.have.status(403);
-        expect(res.body.message).to.equal('Admin accounts cannot be registered');
+        expect(res.body.message).to.equal('Built-in accounts cannot be registered');
         expect(findUser.notCalled).to.equal(true);
     });
 
-    it('allows the reserved admin user to log in and receive an admin token', async () => {
+    it('allows the built-in admin user to log in and receive an admin token', async () => {
         sinon.stub(User, 'findOne').resolves(null);
         const createUser = sinon.stub(User, 'create').callsFake(async (payload) => ({
             id: 'admin-1',
@@ -66,19 +66,44 @@ describe('DebateHub API automation tests', () => {
         const res = await chai.request(app)
             .post('/api/auth/login')
             .send({
-                email: 'burak.sofu@gmail.com',
-                password: 'burak.sofu@gmail.com',
+                email: 'admin.user@connect.qut.edu.au',
+                password: 'admin.user@connect.qut.edu.au',
             });
 
         expect(res).to.have.status(200);
         expect(res.body).to.include({
             id: 'admin-1',
-            name: 'Burak Sofu',
-            email: 'burak.sofu@gmail.com',
+            name: 'Admin User',
+            email: 'admin.user@connect.qut.edu.au',
             role: 'admin',
         });
         expect(res.body.token).to.be.a('string');
         expect(createUser.calledOnceWithMatch({ role: 'admin' })).to.equal(true);
+    });
+
+    it('allows the built-in regular user to log in and receive a student token', async () => {
+        sinon.stub(User, 'findOne').resolves(null);
+        const createUser = sinon.stub(User, 'create').callsFake(async (payload) => ({
+            id: 'regular-1',
+            ...payload,
+        }));
+
+        const res = await chai.request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'regular.user@connect.qut.edu.au',
+                password: 'regular.user@connect.qut.edu.au',
+            });
+
+        expect(res).to.have.status(200);
+        expect(res.body).to.include({
+            id: 'regular-1',
+            name: 'Regular User',
+            email: 'regular.user@connect.qut.edu.au',
+            role: 'student',
+        });
+        expect(res.body.token).to.be.a('string');
+        expect(createUser.calledOnceWithMatch({ role: 'student' })).to.equal(true);
     });
 
     it('creates new debates in Open status even when another status is submitted', async () => {

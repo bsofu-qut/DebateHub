@@ -3,8 +3,20 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-const ADMIN_EMAIL = 'burak.sofu@gmail.com';
-const ADMIN_PASSWORD = 'burak.sofu@gmail.com';
+const BUILT_IN_USERS = {
+    'regular.user@connect.qut.edu.au': {
+        name: 'Regular User',
+        email: 'regular.user@connect.qut.edu.au',
+        password: 'regular.user@connect.qut.edu.au',
+        role: 'student',
+    },
+    'admin.user@connect.qut.edu.au': {
+        name: 'Admin User',
+        email: 'admin.user@connect.qut.edu.au',
+        password: 'admin.user@connect.qut.edu.au',
+        role: 'admin',
+    },
+};
 
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -13,8 +25,8 @@ const generateToken = (id) => {
 const registerUser = async (req, res) => {
     const { name, email, password } = req.body;
     try {
-        if (email.toLowerCase() === ADMIN_EMAIL) {
-            return res.status(403).json({ message: 'Admin accounts cannot be registered' });
+        if (BUILT_IN_USERS[email.toLowerCase()]) {
+            return res.status(403).json({ message: 'Built-in accounts cannot be registered' });
         }
 
         const userExists = await User.findOne({ email });
@@ -30,18 +42,21 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
-        let user = await User.findOne({ email });
+        const normalizedEmail = email.toLowerCase();
+        const builtInUser = BUILT_IN_USERS[normalizedEmail];
+        let user = await User.findOne({ email: normalizedEmail });
 
-        if (email.toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        if (builtInUser && password === builtInUser.password) {
             if (!user) {
                 user = await User.create({
-                    name: 'Burak Sofu',
-                    email: ADMIN_EMAIL,
-                    password: ADMIN_PASSWORD,
-                    role: 'admin',
+                    name: builtInUser.name,
+                    email: builtInUser.email,
+                    password: builtInUser.password,
+                    role: builtInUser.role,
                 });
-            } else if (user.role !== 'admin') {
-                user.role = 'admin';
+            } else if (user.role !== builtInUser.role || user.name !== builtInUser.name) {
+                user.name = builtInUser.name;
+                user.role = builtInUser.role;
                 await user.save();
             }
 
