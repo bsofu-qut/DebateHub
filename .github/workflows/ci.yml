@@ -9,6 +9,7 @@ on:
 jobs:
   build-test-deploy:
     runs-on: self-hosted
+    environment: production
     env:
       BACKEND_APP_NAME: debatehub-backend
       FRONTEND_DEPLOY_PATH: /var/www/debatehub
